@@ -14,9 +14,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private var steps = 0
     private var stepLength = 83.25f // step length in cm
-    private var previousY = 0f
-    private var currentY = 0f
-    private var stepsThreshold = 1.5f
+    private var gravity = FloatArray(3)
+    private var linearAcceleration = FloatArray(3)
+    private val alpha = 0.8f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,21 +30,29 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     }
 
     override fun onSensorChanged(event: SensorEvent) {
-        val x = event.values[0]
-        val y = event.values[1]
-        val z = event.values[2]
+        // Apply the low-pass filter
+        gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0]
+        gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1]
+        gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2]
 
-        // Calculate the magnitude of the acceleration
-        val magnitude = sqrt(x * x + y * y + z * z)
+        // Subtract the gravity component of the acceleration
+        linearAcceleration[0] = event.values[0] - gravity[0]
+        linearAcceleration[1] = event.values[1] - gravity[1]
+        linearAcceleration[2] = event.values[2] - gravity[2]
 
-        // Detect steps based on the magnitude of the acceleration
-        currentY = magnitude
-        if (Math.abs(currentY - previousY) > stepsThreshold) {
+        // Calculate the magnitude of the linear acceleration
+        val magnitude = sqrt(linearAcceleration[0] * linearAcceleration[0] + linearAcceleration[1] * linearAcceleration[1] + linearAcceleration[2] * linearAcceleration[2])
+
+        // Display the acceleration value
+        findViewById<TextView>(R.id.accelerationView).text = "Ускорение: $magnitude m/s²"
+
+        // Detect steps based on the magnitude of the linear acceleration
+        if (magnitude > 10) {
             steps++
             val distance = steps * stepLength / 100 // convert cm to meters
-            findViewById<TextView>(R.id.distanceView).text = "Distance: $distance m"
+            findViewById<TextView>(R.id.distanceView).text = "Расстояние: $distance m"
+            findViewById<TextView>(R.id.stepsView).text = "Количество шагов: $steps"
         }
-        previousY = currentY
     }
 
     override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
